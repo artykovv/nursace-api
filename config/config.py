@@ -16,3 +16,6 @@ ACCESS_KEY = os.environ.get("ACCESS_KEY")
 SECRET_KEY = os.environ.get("SECRET_KEY")
 ENDPOINT_URL = os.environ.get("ENDPOINT_URL")
 BUCKET_NAME = os.environ.get("BUCKET_NAME")
+
+
+origins = [origin.strip() for origin in os.getenv("ALLOWED_ORIGINS", "").split(",") if origin]

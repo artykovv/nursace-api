@@ -10,11 +10,13 @@ from order.routers.routers import routers as order
 from docs.routers.routers import routers as docs
 from custom.routers.routers import routers as custom
 
+from config.config import origins
+
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:8080", "http://127.0.0.1:8001", "http://127.0.0.1:8002", "https://7cce-95-87-69-227.ngrok-free.app"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
