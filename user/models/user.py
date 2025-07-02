@@ -18,6 +18,7 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     name = Column(String, nullable=True)
     lastname = Column(String, nullable=True)
     register_at = Column(DateTime, nullable=True)
+    session_id = Column(UUID(as_uuid=True), nullable=True)
 
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)

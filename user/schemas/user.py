@@ -14,14 +14,14 @@ class UserRead(BaseModel):
     is_active: bool
     is_superuser: bool
     is_verified: bool
+    session_id: UUID
     branch_ids: List[int] = []
 
     class Config:
         from_attributes = True
 
 class UserCreate(schemas.BaseUserCreate):
-    name: Optional[str] = None
-    lastname: Optional[str] = None
+    session_id: UUID
 
 
 class UserUpdate(BaseModel):
