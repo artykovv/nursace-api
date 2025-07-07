@@ -24,7 +24,7 @@ app.add_middleware(
 
 @app.get("/")
 def read_root():
-    return {"message": "Hello, World!"}
+    return {"message": "Hello, World! "}
 
 app.include_router(catalog_router)
 app.include_router(user_router)
