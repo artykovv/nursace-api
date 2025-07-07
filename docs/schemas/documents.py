@@ -2,7 +2,7 @@
 
 # Pydantic models for request/response
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class DocumentCreate(BaseModel):
@@ -26,8 +26,7 @@ class DocumentResponse(BaseModel):
     created_at: datetime
     updated_at: datetime | None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class DocumentListResponse(BaseModel):
     id: int
@@ -37,5 +36,4 @@ class DocumentListResponse(BaseModel):
     created_at: datetime
     updated_at: datetime | None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

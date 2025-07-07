@@ -1,16 +1,15 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, delete, func, or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from config.database import get_async_session
 from sqlalchemy.orm import selectinload, aliased
 from user.models import User
 from user.auth.fastapi_users_instance import fastapi_users
-from user.auth.auth import auth_backend
 
 
 from catalog.services.products import ProductServices
-from catalog.schemas.product import BaseProductSchema, ProductImageSchema, UpdateProductSchema, SimilarProductSchema, UpdateProductImageSchema
+from catalog.schemas.product import BaseProductSchema, UpdateProductSchema, SimilarProductSchema, UpdateProductImageSchema
 
 from catalog.models import Product, Collection, Category, ProductImage
 

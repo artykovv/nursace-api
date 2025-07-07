@@ -1,5 +1,5 @@
 # schemas/user.py
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 from uuid import UUID
 from typing import List, Optional
 from datetime import datetime
@@ -17,8 +17,7 @@ class UserRead(BaseModel):
     session_id: UUID
     branch_ids: List[int] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class UserCreate(schemas.BaseUserCreate):
     session_id: UUID
