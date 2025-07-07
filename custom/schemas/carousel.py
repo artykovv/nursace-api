@@ -1,4 +1,4 @@
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, ConfigDict, HttpUrl
 
 class CarouselImageBase(BaseModel):
     src: str
@@ -14,5 +14,4 @@ class CarouselImageUpdate(BaseModel):
 class CarouselImageRead(CarouselImageBase):
     id: int
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

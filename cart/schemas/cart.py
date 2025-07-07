@@ -33,5 +33,4 @@ class CartItemResponse(BaseModel):
     added_at: datetime
     product: Optional[Product]
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

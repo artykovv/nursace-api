@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from uuid import UUID
 from typing import Optional
@@ -18,8 +18,7 @@ class OrderStatusUpdate(OrderStatusBase):
 class OrderStatusResponse(OrderStatusBase):
     id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # OrderItem
 class OrderItemBase(BaseModel):
@@ -38,12 +37,12 @@ class OrderItemUpdate(BaseModel):
 class OrderItemResponse(OrderItemBase):
     id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # OrderInfo
 class OrderInfoBase(BaseModel):
     user_id: Optional[UUID] = None
+    email: str
     first_name: str
     last_name: str
     address_line1: str
@@ -71,8 +70,7 @@ class OrderInfoResponse(OrderInfoBase):
     id: int
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Order
 class OrderBase(BaseModel):
@@ -99,8 +97,7 @@ class OrderResponse(OrderBase):
     status: Optional[OrderStatusResponse] = None
     info: Optional[OrderInfoResponse] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ChekoutOrderCreate(BaseModel):
     user_id: UUID | None = None

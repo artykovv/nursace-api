@@ -1,5 +1,6 @@
 from uuid import UUID
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from payment.freedompay.generate_freedompay_link import generate_freedompay_link
@@ -11,6 +12,7 @@ from order.models import (
 from cart.models import CartItem
 from order.services.order import OrderStatusCRUD
 from order.schemas.order import ChekoutOrderCreate
+from notification.tasks.email_sender import send_check_email
 
 router = APIRouter(prefix="/orders", tags=["checkout"])
 
@@ -21,11 +23,22 @@ async def payment_check(pg_order_id: str, pg_amount: str, db: AsyncSession = Dep
         return {"pg_status": "error", "pg_error_description": "Order not found or amount mismatch"}
     return {"pg_status": "ok"}
 
+class OrderRequest(BaseModel):
+    order_id: int
+    
+@router.post("/test")
+async def test_send_check_email(data: OrderRequest):
+    task = await send_check_email(order_id=data.order_id)
+    return task
+
 @router.post("/payment/result")
-async def payment_result(payload: dict = Body(...), db: AsyncSession = Depends(get_async_session)):
-    # Проверить подпись pg_sig, рекомендую парсинг и верификацию
+async def payment_result(
+    payload: dict = Body(...), 
+    db: AsyncSession = Depends(get_async_session),
+    background_tasks: BackgroundTasks = None,
+):
     order_id = int(payload["pg_order_id"])
-    status = payload.get("pg_status")  # обычно "ok" или "error"
+    status = payload.get("pg_status")  # "ok" или "error"
 
     order = await db.get(Order, order_id)
     if not order:
@@ -33,11 +46,17 @@ async def payment_result(payload: dict = Body(...), db: AsyncSession = Depends(g
 
     if status == "ok":
         order.status_id = await OrderStatusCRUD.get_by_name(name="paid", db=db)
+
+        # Получим email, который ты передавал в запрос FreedomPay
+        user_email = payload.get("pg_user_contact_email")
+        if user_email:
+            background_tasks.add_task(send_check_email, user_email, order_id)
+
     else:
         order.status_id = await OrderStatusCRUD.get_by_name(name="cancelled", db=db)
 
     await db.commit()
-    return {"status": "ok"}  # обязательно
+    return {"status": "ok"}
 
 
 

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 
 class CustomCategoryBase(BaseModel):
@@ -13,5 +13,4 @@ class CustomCategoryUpdate(CustomCategoryBase):
 class CustomCategoryInDB(CustomCategoryBase):
     category_id: int
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

@@ -2,10 +2,8 @@ import hashlib
 import random
 import string
 import aiohttp
+from config.config import SECRET_KEY, MERCHANT_ID, ENDPOINT, FRONTEND_URL, BACKEND_URL
 
-MERCHANT_ID = "560549"   # получите у FreedomPay sandbox
-SECRET_KEY = "enHj3DskKDcVLoaj"     # тестовый ключ
-ENDPOINT = "https://api.freedompay.kg/init_payment.php"
 
 def gen_salt(length: int = 16) -> str:
     return "".join(random.choices(string.ascii_letters + string.digits, k=length))
@@ -31,10 +29,10 @@ async def generate_freedompay_link(
         "pg_salt": salt,
         "pg_currency": "KGS",
         "pg_testing_mode": 1,             # тестовый режим  [oai_citation:0‡freedompay.kg](https://freedompay.kg/docs-en/merchant-api/pay?utm_source=chatgpt.com)
-        "pg_check_url": "https://http://127.0.0.1:8000/orders/payment/check",
-        "pg_result_url": "https://http://127.0.0.1:8000/orders/payment/result",
-        "pg_success_url": "https://http://127.0.0.1:8001/orders/success",
-        "pg_failure_url": "https://http://127.0.0.1:8001/orders/failure",
+        "pg_check_url": f"{BACKEND_URL}/orders/payment/check",
+        "pg_result_url": f"{BACKEND_URL}/orders/payment/result",
+        "pg_success_url": f"{FRONTEND_URL}/orders/success",
+        "pg_failure_url": f"{FRONTEND_URL}/orders/failure",
         "pg_user_phone": user_phone,         # номер покупателя
         "pg_user_contact_email": user_email, # электронная почта
     }

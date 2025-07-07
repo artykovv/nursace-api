@@ -9,6 +9,7 @@ from cart.routers.routers import routers as cart
 from order.routers.routers import routers as order
 from docs.routers.routers import routers as docs
 from custom.routers.routers import routers as custom
+from notification.router.router import router as notification
 
 from config.config import origins
 
@@ -16,7 +17,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -34,3 +35,4 @@ app.include_router(cart)
 app.include_router(order)
 app.include_router(docs)
 app.include_router(custom)
+app.include_router(notification)
