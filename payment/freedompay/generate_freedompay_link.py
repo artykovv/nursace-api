@@ -2,7 +2,7 @@ import hashlib
 import random
 import string
 import aiohttp
-from config.config import SECRET_KEY, MERCHANT_ID, ENDPOINT, FRONTEND_URL, BACKEND_URL
+from config.config import FREEDOM_BACKEND_URL, FREEDOM_ENDPOINT, FREEDOM_FRONTEND_URL, FREEDOM_MERCHANT_ID, FREEDOM_SECRET_KEY
 
 
 def gen_salt(length: int = 16) -> str:
@@ -10,7 +10,7 @@ def gen_salt(length: int = 16) -> str:
 
 def sign_params(params: dict, script_name: str) -> str:
     """Создаёт pg_sig, MD5 от (script_name + ; + sorted params + ; + secret_key)."""
-    values = [script_name] + [str(params[k]) for k in sorted(params)] + [SECRET_KEY]
+    values = [script_name] + [str(params[k]) for k in sorted(params)] + [FREEDOM_SECRET_KEY]
     return hashlib.md5(";".join(values).encode("utf-8")).hexdigest()
 
 async def generate_freedompay_link(
@@ -23,23 +23,23 @@ async def generate_freedompay_link(
     salt = gen_salt()
     params = {
         "pg_order_id": str(order_id),
-        "pg_merchant_id": MERCHANT_ID,
+        "pg_merchant_id": FREEDOM_MERCHANT_ID,
         "pg_amount": f"{amount:.2f}",
         "pg_description": description,
         "pg_salt": salt,
         "pg_currency": "KGS",
         "pg_testing_mode": 1,             # тестовый режим  [oai_citation:0‡freedompay.kg](https://freedompay.kg/docs-en/merchant-api/pay?utm_source=chatgpt.com)
-        "pg_check_url": f"{BACKEND_URL}/orders/payment/check",
-        "pg_result_url": f"{BACKEND_URL}/orders/payment/result",
-        "pg_success_url": f"{FRONTEND_URL}/orders/success",
-        "pg_failure_url": f"{FRONTEND_URL}/orders/failure",
+        "pg_check_url": f"{FREEDOM_BACKEND_URL}/orders/payment/check",
+        "pg_result_url": f"{FREEDOM_BACKEND_URL}/orders/payment/result",
+        "pg_success_url": f"{FREEDOM_FRONTEND_URL}/orders/success",
+        "pg_failure_url": f"{FREEDOM_FRONTEND_URL}/orders/failure",
         "pg_user_phone": user_phone,         # номер покупателя
         "pg_user_contact_email": user_email, # электронная почта
     }
     params["pg_sig"] = sign_params(params, "init_payment.php")
 
     async with aiohttp.ClientSession() as session:
-        async with session.post(ENDPOINT, data=params) as resp:
+        async with session.post(FREEDOM_ENDPOINT, data=params) as resp:
             resp.raise_for_status()
             text = await resp.text()
     # Парсим XML и извлекаем pg_redirect_url

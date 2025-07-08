@@ -5,7 +5,7 @@ from user.auth.fastapi_users_instance import fastapi_users
 from user.auth.auth import auth_backend
 import pyvips
 from storage.s3 import S3Client
-from config.config import ACCESS_KEY, SECRET_KEY, ENDPOINT_URL, BUCKET_NAME
+from config.config import S3_ACCESS_KEY, S3_BUCKET_NAME, S3_ENDPOINT_URL, S3_SECRET_KEY
 from user.models import User
 import aiofiles
 import uuid
@@ -17,10 +17,10 @@ import io
 router = APIRouter(prefix="/storage", tags=["storage"])
 
 s3_client = S3Client(
-    access_key=ACCESS_KEY,
-    secret_key=SECRET_KEY,
-    endpoint_url=ENDPOINT_URL,
-    bucket_name=BUCKET_NAME,
+    access_key=S3_ACCESS_KEY,
+    secret_key=S3_SECRET_KEY,
+    endpoint_url=S3_ENDPOINT_URL,
+    bucket_name=S3_BUCKET_NAME,
 )
 
 @router.post("/upload")
