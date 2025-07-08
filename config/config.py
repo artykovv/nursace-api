@@ -12,16 +12,16 @@ DB_USER = os.environ.get("POSTGRESQL_USER")
 DB_PASS = os.environ.get("POSTGRESQL_PASSWORD")
 
 
-ACCESS_KEY = os.environ.get("ACCESS_KEY")
-SECRET_KEY = os.environ.get("SECRET_KEY")
-ENDPOINT_URL = os.environ.get("ENDPOINT_URL")
-BUCKET_NAME = os.environ.get("BUCKET_NAME")
+S3_ACCESS_KEY = os.environ.get("S3_ACCESS_KEY")
+S3_SECRET_KEY = os.environ.get("S3_SECRET_KEY")
+S3_ENDPOINT_URL = os.environ.get("S3_ENDPOINT_URL")
+S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME")
 
-FREEDOM_MERCHANT_ID =  os.environ.get("MERCHANT_ID")
-FREEDOM_SECRET_KEY =  os.environ.get("SECRET_KEY")
-FREEDOM_ENDPOINT =  os.environ.get("ENDPOINT")
-FREEDOM_FRONTEND_URL = os.environ.get("FRONTEND_URL")
-FREEDOM_BACKEND_URL = os.environ.get("FRONTEND_URL")
+FREEDOM_MERCHANT_ID =  os.environ.get("FREEDOM_MERCHANT_ID")
+FREEDOM_SECRET_KEY =  os.environ.get("FREEDOM_SECRET_KEY")
+FREEDOM_ENDPOINT =  os.environ.get("FREEDOM_ENDPOINT")
+FREEDOM_FRONTEND_URL = os.environ.get("FREEDOM_FRONTEND_URL")
+FREEDOM_BACKEND_URL = os.environ.get("FREEDOM_BACKEND_URL")
 
 
 SMTP_HOST = os.environ.get("SMTP_HOST")
