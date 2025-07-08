@@ -12,12 +12,14 @@ from catalog.services.products import ProductServices
 from catalog.schemas.product import BaseProductSchema, UpdateProductSchema, SimilarProductSchema, UpdateProductImageSchema
 
 from catalog.models import Product, Collection, Category, ProductImage
+from custom.models import CustomCategory
 
 router = APIRouter(prefix="/products", tags=["products"])
 
 @router.get("/v1/", response_model=List[BaseProductSchema])
 async def get_products_by_filters(
     category_id: Optional[List[int]] = Query(None),
+    custom_category_id: Optional[List[int]] = Query(None),
     manufacturer_id: Optional[List[int]] = Query(None),
     collection_id: Optional[List[int]] = Query(None),
     season_id: Optional[int] = None,
@@ -85,6 +87,10 @@ async def get_products_by_filters(
         )
         query = query.where(Product.category_id.in_(select(category_cte.c.category_id)))
 
+    if custom_category_id:
+        query = query.where(
+            Product.custom_categories.any(CustomCategory.category_id.in_(custom_category_id))
+    )
     # Простые фильтры
     if manufacturer_id:
         query = query.where(Product.manufacturer_id.in_(manufacturer_id))
@@ -146,6 +152,7 @@ async def get_products_by_filters(
 @router.get("/", response_model=List[BaseProductSchema])
 async def get_products_by_filters(
     category_id: Optional[List[int]] = Query(None),
+    custom_category_id: Optional[List[int]] = Query(None),
     manufacturer_id: Optional[List[int]] = Query(None),
     collection_id: Optional[List[int]] = Query(None),
     season_id: Optional[int] = None,
@@ -194,6 +201,10 @@ async def get_products_by_filters(
         )
         query = query.where(Product.category_id.in_(select(category_cte.c.category_id)))
 
+    if custom_category_id:
+        query = query.where(
+            Product.custom_categories.any(CustomCategory.category_id.in_(custom_category_id))
+        )
     # Остальные фильтры
     if manufacturer_id:
         query = query.where(Product.manufacturer_id.in_(manufacturer_id))

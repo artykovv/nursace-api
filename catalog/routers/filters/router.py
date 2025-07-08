@@ -3,11 +3,13 @@ from sqlalchemy import distinct, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from config.database import get_async_session  
 from catalog.models import Category, Product, Manufacturer, Collection, Color, Sex
+from custom.models import CustomCategory
 
 router = APIRouter(prefix="/filters", tags=["filters"])
 
 @router.get("/")
 async def get_available_filters(
+    custom_category_id: int | None = None,
     category_id: int | None = None,
     manufacturer_id: int | None = None,
     collection_id: int | None = None,
@@ -24,6 +26,10 @@ async def get_available_filters(
         stmt = stmt.where(Product.collection_id == collection_id)
     if season_id:
         stmt = stmt.where(Product.season_id == season_id)
+    if custom_category_id:
+        stmt = stmt.where(
+            Product.custom_categories.any(CustomCategory.category_id == custom_category_id)
+        )
 
     subquery = stmt.subquery()
 
