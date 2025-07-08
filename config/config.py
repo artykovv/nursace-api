@@ -17,11 +17,11 @@ SECRET_KEY = os.environ.get("SECRET_KEY")
 ENDPOINT_URL = os.environ.get("ENDPOINT_URL")
 BUCKET_NAME = os.environ.get("BUCKET_NAME")
 
-MERCHANT_ID =  os.environ.get("MERCHANT_ID")
-SECRET_KEY =  os.environ.get("SECRET_KEY")
-ENDPOINT =  os.environ.get("ENDPOINT")
-FRONTEND_URL = os.environ.get("FRONTEND_URL")
-BACKEND_URL = os.environ.get("FRONTEND_URL")
+FREEDOM_MERCHANT_ID =  os.environ.get("MERCHANT_ID")
+FREEDOM_SECRET_KEY =  os.environ.get("SECRET_KEY")
+FREEDOM_ENDPOINT =  os.environ.get("ENDPOINT")
+FREEDOM_FRONTEND_URL = os.environ.get("FRONTEND_URL")
+FREEDOM_BACKEND_URL = os.environ.get("FRONTEND_URL")
 
 
 SMTP_HOST = os.environ.get("SMTP_HOST")
