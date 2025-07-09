@@ -97,14 +97,13 @@ async def payment_result(
     if not order:
         return {"status": "error", "message": "Order not found"}
 
-    if str(order.total_price) != str(amount):
+    if round(float(order.total_price), 2) != round(float(amount), 2):
         return {"status": "error", "message": "Amount mismatch"}
 
     if str(pg_result) == "1":
-        order.status_id = await OrderStatusCRUD.get_by_name(name="paid", db=db)
-        email = data.get("pg_user_contact_email")
-        if email:
-            background_tasks.add_task(send_check_email, email, order_id)
+        status = await OrderStatusCRUD.get_by_name(name="paid", db=db)
+        order.status_id = status.id
+        background_tasks.add_task(send_check_email, int(order_id))
     else:
         order.status_id = await OrderStatusCRUD.get_by_name(name="cancelled", db=db)
 
