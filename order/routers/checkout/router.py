@@ -66,13 +66,29 @@ async def payment_result(
     db: AsyncSession = Depends(get_async_session),
     background_tasks: BackgroundTasks = None,
 ):
-    data = await request.json()
-    print("FreedomPay RESULT callback:", data)
+    # Заголовки запроса
+    print("🔍 Headers:", dict(request.headers))
+
+    # Сырое тело запроса
+    body_bytes = await request.body()
+    print("📦 Raw body:", body_bytes.decode("utf-8"))
+
+    if not body_bytes:
+        print("❗ Тело запроса пустое.")
+        return {"status": "error", "message": "Empty body"}
+
+    try:
+        form = await request.form()
+        data = dict(form)
+        print("✅ Parsed form-data:", data)
+    except Exception as e:
+        print("❌ Ошибка при парсинге form-data:", str(e))
+        return {"status": "error", "message": "Invalid form data"}
 
     order_id = data.get("pg_order_id")
     payment_id = data.get("pg_payment_id")
     amount = data.get("pg_amount")
-    pg_result = data.get("pg_result")  # 1 — успешно, 0 — ошибка
+    pg_result = data.get("pg_result")
 
     if not order_id or not payment_id:
         return {"status": "error", "message": "Missing order_id or payment_id"}
@@ -85,14 +101,11 @@ async def payment_result(
         return {"status": "error", "message": "Amount mismatch"}
 
     if str(pg_result) == "1":
-        # Статус "paid"
         order.status_id = await OrderStatusCRUD.get_by_name(name="paid", db=db)
-
         email = data.get("pg_user_contact_email")
         if email:
             background_tasks.add_task(send_check_email, email, order_id)
     else:
-        # Статус "cancelled"
         order.status_id = await OrderStatusCRUD.get_by_name(name="cancelled", db=db)
 
     await db.commit()
