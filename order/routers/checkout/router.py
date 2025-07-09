@@ -64,38 +64,39 @@ async def test_send_check_email(data: OrderRequest):
 async def payment_result(
     request: Request,
     db: AsyncSession = Depends(get_async_session),
-    background_tasks: BackgroundTasks = BackgroundTasks(),
+    background_tasks: BackgroundTasks = None,
 ):
-    try:
-        payload = await request.json()
-        print("FreedomPay RESULT callback:", payload)
+    data = await request.json()
+    print("FreedomPay RESULT callback:", data)
 
-        order_id = payload.get("pg_order_id")
-        payment_id = payload.get("pg_payment_id")
-        amount = payload.get("pg_amount")
-        status = payload.get("pg_result") or payload.get("pg_status")
+    order_id = data.get("pg_order_id")
+    payment_id = data.get("pg_payment_id")
+    amount = data.get("pg_amount")
+    pg_result = data.get("pg_result")  # 1 — успешно, 0 — ошибка
 
-        if not order_id:
-            raise HTTPException(status_code=400, detail="Missing order_id")
+    if not order_id or not payment_id:
+        return {"status": "error", "message": "Missing order_id or payment_id"}
 
-        order = await db.get(Order, int(order_id))
-        if not order:
-            raise HTTPException(404, "Order not found")
+    order = await db.get(Order, int(order_id))
+    if not order:
+        return {"status": "error", "message": "Order not found"}
 
-        if status == "ok":
-            order.status_id = await OrderStatusCRUD.get_by_name(name="paid", db=db)
-            user_email = payload.get("pg_user_contact_email")
-            if user_email:
-                background_tasks.add_task(send_check_email, user_email, order.id)
-        else:
-            order.status_id = await OrderStatusCRUD.get_by_name(name="cancelled", db=db)
+    if str(order.total_price) != str(amount):
+        return {"status": "error", "message": "Amount mismatch"}
 
-        await db.commit()
-        return JSONResponse(content={"status": "ok"}, status_code=200)
+    if str(pg_result) == "1":
+        # Статус "paid"
+        order.status_id = await OrderStatusCRUD.get_by_name(name="paid", db=db)
 
-    except Exception as e:
-        print("Ошибка обработки pg_result_url:", e)
-        return JSONResponse(content={"status": "error", "detail": str(e)}, status_code=500)
+        email = data.get("pg_user_contact_email")
+        if email:
+            background_tasks.add_task(send_check_email, email, order_id)
+    else:
+        # Статус "cancelled"
+        order.status_id = await OrderStatusCRUD.get_by_name(name="cancelled", db=db)
+
+    await db.commit()
+    return {"status": "ok"}
 
 
 
