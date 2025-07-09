@@ -28,7 +28,7 @@ async def generate_freedompay_link(
         "pg_description": description,
         "pg_salt": salt,
         "pg_currency": "KGS",
-        "pg_testing_mode": 1,             # тестовый режим  [oai_citation:0‡freedompay.kg](https://freedompay.kg/docs-en/merchant-api/pay?utm_source=chatgpt.com)
+        "pg_testing_mode": 1,
         "pg_check_url": f"{FREEDOM_BACKEND_URL}/orders/payment/check",
         "pg_result_url": f"{FREEDOM_BACKEND_URL}/orders/payment/result",
         "pg_success_url": f"{FREEDOM_FRONTEND_URL}/orders/success",

@@ -1,5 +1,6 @@
 from uuid import UUID
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -17,11 +18,39 @@ from notification.tasks.email_sender import send_check_email
 router = APIRouter(prefix="/orders", tags=["checkout"])
 
 @router.post("/payment/check")
-async def payment_check(pg_order_id: str, pg_amount: str, db: AsyncSession = Depends(get_async_session)):
-    order = await db.get(Order, int(pg_order_id))
-    if not order or float(order.total_price) != float(pg_amount):
-        return {"pg_status": "error", "pg_error_description": "Order not found or amount mismatch"}
-    return {"pg_status": "ok"}
+async def payment_check(request: Request, db: AsyncSession = Depends(get_async_session)):
+    try:
+        data = await request.json()
+        pg_order_id = data.get("pg_order_id")
+        pg_amount = data.get("pg_amount")
+
+        if not pg_order_id or not pg_amount:
+            return JSONResponse(
+                content={"pg_status": "error", "pg_error_description": "Missing pg_order_id or pg_amount"},
+                status_code=200
+            )
+
+        order = await db.get(Order, int(pg_order_id))
+        if not order:
+            return JSONResponse(
+                content={"pg_status": "error", "pg_error_description": "Order not found"},
+                status_code=200
+            )
+
+        if float(order.total_price) != float(pg_amount):
+            return JSONResponse(
+                content={"pg_status": "error", "pg_error_description": "Amount mismatch"},
+                status_code=200
+            )
+
+        return JSONResponse(content={"pg_status": "ok"}, status_code=200)
+
+    except Exception as e:
+        print("Ошибка в payment_check:", e)
+        return JSONResponse(
+            content={"pg_status": "error", "pg_error_description": "Internal server error"},
+            status_code=200
+        )
 
 class OrderRequest(BaseModel):
     order_id: int
@@ -33,30 +62,40 @@ async def test_send_check_email(data: OrderRequest):
 
 @router.post("/payment/result")
 async def payment_result(
-    payload: dict = Body(...), 
+    request: Request,
     db: AsyncSession = Depends(get_async_session),
-    background_tasks: BackgroundTasks = None,
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
-    order_id = int(payload["pg_order_id"])
-    status = payload.get("pg_status")  # "ok" или "error"
+    try:
+        payload = await request.json()
+        print("FreedomPay RESULT callback:", payload)
 
-    order = await db.get(Order, order_id)
-    if not order:
-        raise HTTPException(404, "Order not found")
+        order_id = payload.get("pg_order_id")
+        payment_id = payload.get("pg_payment_id")
+        amount = payload.get("pg_amount")
+        status = payload.get("pg_result") or payload.get("pg_status")
 
-    if status == "ok":
-        order.status_id = await OrderStatusCRUD.get_by_name(name="paid", db=db)
+        if not order_id:
+            raise HTTPException(status_code=400, detail="Missing order_id")
 
-        # Получим email, который ты передавал в запрос FreedomPay
-        user_email = payload.get("pg_user_contact_email")
-        if user_email:
-            background_tasks.add_task(send_check_email, user_email, order_id)
+        order = await db.get(Order, int(order_id))
+        if not order:
+            raise HTTPException(404, "Order not found")
 
-    else:
-        order.status_id = await OrderStatusCRUD.get_by_name(name="cancelled", db=db)
+        if status == "ok":
+            order.status_id = await OrderStatusCRUD.get_by_name(name="paid", db=db)
+            user_email = payload.get("pg_user_contact_email")
+            if user_email:
+                background_tasks.add_task(send_check_email, user_email, order.id)
+        else:
+            order.status_id = await OrderStatusCRUD.get_by_name(name="cancelled", db=db)
 
-    await db.commit()
-    return {"status": "ok"}
+        await db.commit()
+        return JSONResponse(content={"status": "ok"}, status_code=200)
+
+    except Exception as e:
+        print("Ошибка обработки pg_result_url:", e)
+        return JSONResponse(content={"status": "error", "detail": str(e)}, status_code=500)
 
 
 
