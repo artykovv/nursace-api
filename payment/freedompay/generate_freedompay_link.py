@@ -31,8 +31,8 @@ async def generate_freedompay_link(
         "pg_testing_mode": 1,
         "pg_check_url": f"{FREEDOM_BACKEND_URL}/orders/payment/check",
         "pg_result_url": f"{FREEDOM_BACKEND_URL}/orders/payment/result",
-        "pg_success_url": f"{FREEDOM_FRONTEND_URL}/orders/success",
-        "pg_failure_url": f"{FREEDOM_FRONTEND_URL}/orders/failure",
+        "pg_success_url": f"{FREEDOM_FRONTEND_URL}/checkout/success",
+        "pg_failure_url": f"{FREEDOM_FRONTEND_URL}/checkout/success",
         "pg_user_phone": user_phone,         # номер покупателя
         "pg_user_contact_email": user_email, # электронная почта
     }
