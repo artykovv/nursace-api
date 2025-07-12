@@ -10,6 +10,9 @@ from order.routers.routers import routers as order
 from docs.routers.routers import routers as docs
 from custom.routers.routers import routers as custom
 from notification.router.router import router as notification
+from report.routers.routers import routers as report
+from leads.routers.router import router as leads
+from facebook.router import router as facebook
 
 from config.config import origins
 
@@ -36,3 +39,6 @@ app.include_router(order)
 app.include_router(docs)
 app.include_router(custom)
 app.include_router(notification)
+app.include_router(report)
+app.include_router(leads)
+app.include_router(facebook)

@@ -67,3 +67,5 @@ class Product(Base):
     analogs = relationship("Analog", foreign_keys="Analog.good_id", back_populates="product")
     analog_products = relationship("Analog", foreign_keys="Analog.analog_good_id", back_populates="analog_product")
     images = relationship("ProductImage", back_populates="product", cascade="all, delete-orphan")
+
+    lead_products = relationship("LeadProduct", back_populates="product")
