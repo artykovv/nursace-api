@@ -36,6 +36,10 @@ async def get_products_by_filters(
     price_gt: Optional[float] = None,
     price_lt: Optional[float] = None,
     search: Optional[str] = None,
+
+    offset: int = Query(0, ge=0),
+    limit: int = Query(20, le=100),
+
     session: AsyncSession = Depends(get_async_session),
 ):
     # Подзапрос с ранжированием товаров по артикулам
@@ -52,7 +56,13 @@ async def get_products_by_filters(
     )
 
     # Подзапрос с good_id товаров с rank=1 (минимальная цена и минимальный good_id)
-    min_good_ids_subq = select(ranked_subq.c.good_id).where(ranked_subq.c.rank == 1).subquery()
+    min_good_ids_subq = (
+        select(ranked_subq.c.good_id)
+        .where(ranked_subq.c.rank == 1)
+        .offset(offset)
+        .limit(limit)
+        .subquery()
+    )
 
     # Основной запрос — выбираем товары с good_id из подзапроса
     query = select(Product).where(Product.good_id.in_(select(min_good_ids_subq)))
@@ -169,9 +179,13 @@ async def get_products_by_filters(
     price_gt: Optional[float] = None,
     price_lt: Optional[float] = None,
     search: Optional[str] = None,
+
+    offset: int = Query(0, ge=0),
+    limit: int = Query(20, le=100),
+
     session: AsyncSession = Depends(get_async_session),
 ):
-    query = select(Product).where(Product.warehouse_quantity > 0)
+    query = select(Product).where(Product.warehouse_quantity > 0).offset(offset).limit(limit)
 
     # Рекурсивные фильтры по коллекциям
     if collection_id:

@@ -37,7 +37,7 @@ class BaseProductSchema(BaseModel):
     guarantee_mes_unit_id: Optional[int]
     model_good_id: Optional[int]
     short_description: Optional[str] = Field(alias='fashion_name')
-    product_size: Optional[int]
+    product_size: Optional[float]
 
     warehouse_quantity: int
 
@@ -65,7 +65,7 @@ class UpdateProductSchema(BaseModel):
     guarantee_mes_unit_id: Optional[int] = None
     model_good_id: Optional[int] = None
     fashion_name: Optional[str] = None
-    product_size: Optional[int] = None
+    product_size: Optional[float] = None
 
     warehouse_quantity: Optional[int] = None
 
@@ -80,6 +80,6 @@ class Color(BaseModel):
 class SimilarProductSchema(BaseModel):
     id: int = Field(alias='good_id')
     color: Color
-    product_size: Optional[int]
+    product_size: Optional[float]
 
     model_config = ConfigDict(from_attributes=True)
