@@ -8,6 +8,7 @@ import aiosmtplib
 from email.message import EmailMessage
 from config.config import SMTP_USER, SMTP_PASS, SMTP_HOST, SMTP_PORT
 from config.database import async_session_maker
+from rabbitmq.send import send_order_to_rabbitmq
 
 async def send_check_email(order_id: int):
     print(f"[DEBUG] Запуск отправки чека по заказу ID = {order_id}")
@@ -24,6 +25,8 @@ async def send_check_email(order_id: int):
         print(f"[DEBUG] Найден заказ: {order is not None}")
         if not order:
             raise ValueError(f"Заказ с ID {order_id} не найден")
+        # отправляем в rabbitMQ
+        send_order_to_rabbitmq(order)
 
         info = order.info
         print(f"[DEBUG] Информация о заказе: email={info.email}, name={info.first_name} {info.last_name}")

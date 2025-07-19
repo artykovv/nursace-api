@@ -29,6 +29,10 @@ SMTP_PORT = os.environ.get("SMTP_PORT")
 SMTP_USER = os.environ.get("SMTP_USER")
 SMTP_PASS = os.environ.get("SMTP_PASS")
 
-
-
 origins = [origin.strip() for origin in os.getenv("ALLOWED_ORIGINS", "").split(",") if origin]
+
+RABBITMQ_HOST = os.environ.get("RABBITMQ_HOST")
+RABBITMQ_PORT = os.environ.get("RABBITMQ_PORT")
+RABBITMQ_USERNAME = os.environ.get("RABBITMQ_USERNAME")
+RABBITMQ_PASSWORD = os.environ.get("RABBITMQ_PASSWORD")
+RABBITMQ_VHOST = os.environ.get("RABBITMQ_VHOST")
