@@ -3,6 +3,7 @@ from sqlalchemy import select, update, delete
 from leads.models import Lead, LeadProduct, LeadStatus
 from leads.schemas.leads import LeadCreate, LeadUpdate, LeadProductCreate, LeadProductUpdate, LeadStatusCreate, LeadStatusUpdate
 from sqlalchemy.orm import selectinload
+from rabbitmq.lead import send_lead_to_rabbitmq
 
 class LeadCRUD:
     @staticmethod
@@ -38,6 +39,16 @@ class LeadCRUD:
             status_id=data.status_id,
         )
         session.add(lead)
+        await session.flush()  # чтобы получить lead.id до коммита
+
+        # Добавляем товары
+        if data.product_ids:
+            lead_products = [
+                LeadProduct(lead_id=lead.id, product_id=product_id)
+                for product_id in data.product_ids
+            ]
+            session.add_all(lead_products)
+
         await session.commit()
         await session.refresh(lead)
 
@@ -51,8 +62,9 @@ class LeadCRUD:
             )
         )
         lead = result.scalar_one()
-
+        send_lead_to_rabbitmq(lead)
         return lead
+
 
     @staticmethod
     async def update(session: AsyncSession, lead_id: int, data: LeadUpdate):

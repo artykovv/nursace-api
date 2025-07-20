@@ -10,7 +10,7 @@ class LeadBase(BaseModel):
     status_id: Optional[int] = None
 
 class LeadCreate(LeadBase):
-    pass
+    product_ids: list[int] = Field(default_factory=list)
 
 class LeadUpdate(LeadBase):
     full_name: Optional[str] = None
