@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 from typing import Optional, List
 
@@ -22,8 +22,7 @@ class LeadRead(LeadBase):
     status: Optional["LeadStatusRead"] = None
     products: List["LeadProductRead"] = []
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 # LeadProduct Schemas
 class LeadProductBase(BaseModel):
@@ -50,8 +49,7 @@ class BaseProductSchema(BaseModel):
 class LeadProductRead(LeadProductBase):
     id: int
     product: Optional["BaseProductSchema"]
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 # LeadStatus Schemas
 class LeadStatusBase(BaseModel):
@@ -66,5 +64,4 @@ class LeadStatusUpdate(LeadStatusBase):
 class LeadStatusRead(LeadStatusBase):
     id: int
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

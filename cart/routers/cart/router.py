@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import asc, func, select, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from config.database import get_async_session
@@ -40,6 +41,36 @@ async def add_to_cart(
     await db.refresh(cart_item)
     return cart_item
 
+@router.post("/v2")
+async def add_to_cart_v2(
+    item: CartItemCreate,
+    db: AsyncSession = Depends(get_async_session)
+):
+    # Проверим наличие товара
+    product = await db.get(Product, item.product_id)
+    if not product or product.warehouse_quantity == 0:
+        raise HTTPException(status_code=404, detail="Product not found or out of stock")
+
+    # Подготовим словарь для вставки
+    insert_data = item.dict()
+
+    # Конфликт по product + session или product + user
+    conflict_cols = ['product_id', 'session_id'] if item.session_id else ['product_id', 'user_id']
+
+    stmt = (
+        insert(CartItem)
+        .values(**insert_data)
+        .on_conflict_do_update(
+            index_elements=conflict_cols,
+            set_={"quantity": CartItem.quantity + item.quantity}
+        )
+        .returning(CartItem.id, CartItem.product_id, CartItem.quantity)
+    )
+
+    result = await db.execute(stmt)
+    await db.commit()
+
+    return result.fetchone()._asdict()
 
 # Получить корзину
 @router.get("/", response_model=list[CartItemResponse])
