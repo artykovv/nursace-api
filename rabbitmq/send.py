@@ -46,13 +46,27 @@ def send_order_to_rabbitmq(order):
     connection = pika.BlockingConnection(parameters)
     channel = connection.channel()
 
-    # Объявляем очередь, если не существует
-    channel.queue_declare(queue=RABBITMQ_VHOST, durable=True)
+    # Объявляем exchange
+    channel.exchange_declare(
+        exchange='nursace_orders_exchange',
+        exchange_type='direct',
+        durable=True
+    )
+
+    # Объявляем очередь
+    channel.queue_declare(queue="order_notifications", durable=True)
+
+    # Связываем exchange и очередь через routing_key
+    channel.queue_bind(
+        exchange='nursace_orders_exchange',
+        queue='order_notifications',
+        routing_key='nursace.order.success'
+    )
 
     # Публикуем сообщение
     channel.basic_publish(
-        exchange='',
-        routing_key=RABBITMQ_VHOST,
+        exchange='nursace_orders_exchange',
+        routing_key="nursace.order.success",
         body=message_body.encode("utf-8"),
         properties=pika.BasicProperties(
             delivery_mode=2  # Сделать сообщение устойчивым
