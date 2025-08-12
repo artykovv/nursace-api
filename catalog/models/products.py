@@ -69,3 +69,4 @@ class Product(Base):
     images = relationship("ProductImage", back_populates="product", cascade="all, delete-orphan")
 
     lead_products = relationship("LeadProduct", back_populates="product")
+    discounts = relationship("DiscountProduct", back_populates="product")

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy import distinct, select
+from sqlalchemy import and_, distinct, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from discounts.models.discounts import DiscountProduct, Discount
 from config.database import get_async_session  
 from catalog.models import Category, Product, Manufacturer, Collection, Color, Sex
 from custom.models import CustomCategory
@@ -14,6 +15,8 @@ async def get_available_filters(
     manufacturer_id: int | None = None,
     collection_id: int | None = None,
     season_id: int | None = None,
+    discounts: bool | None = None,
+    discount_id: int | None = None,
     session: AsyncSession = Depends(get_async_session)
 ):
     stmt = select(Product).where(Product.warehouse_quantity > 0)
@@ -26,6 +29,22 @@ async def get_available_filters(
         stmt = stmt.where(Product.collection_id == collection_id)
     if season_id:
         stmt = stmt.where(Product.season_id == season_id)
+        
+    # Скидки
+    if discounts:
+        stmt = stmt.where(
+            Product.discounts.any(
+                DiscountProduct.discount.has(Discount.is_active == True)
+            )
+        )
+    if discount_id:
+        stmt = stmt.where(
+            Product.discounts.any(
+                DiscountProduct.discount.has(
+                    and_(Discount.is_active == True, Discount.id == discount_id)
+                )
+            )
+        )
     if custom_category_id:
         stmt = stmt.where(
             Product.custom_categories.any(CustomCategory.category_id == custom_category_id)

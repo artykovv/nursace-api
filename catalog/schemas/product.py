@@ -79,7 +79,7 @@ class Color(BaseModel):
 
 class SimilarProductSchema(BaseModel):
     id: int = Field(alias='good_id')
-    color: Color
+    color: Optional[Color] = None
     product_size: Optional[float]
 
     model_config = ConfigDict(from_attributes=True)

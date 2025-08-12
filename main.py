@@ -13,6 +13,8 @@ from notification.router.router import router as notification
 from report.routers.routers import routers as report
 from leads.routers.router import router as leads
 from facebook.router import router as facebook
+from discounts.routers.routers import routers as discounts
+
 
 from config.config import origins
 
@@ -27,7 +29,7 @@ app.add_middleware(
 )
 
 @app.get("/")
-def read_root():
+async def read_root():
     return {"message": "Hello, World! "}
 
 app.include_router(catalog_router)
@@ -42,3 +44,4 @@ app.include_router(notification)
 app.include_router(report)
 app.include_router(leads)
 app.include_router(facebook)
+app.include_router(discounts)

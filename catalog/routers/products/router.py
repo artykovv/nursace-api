@@ -1,6 +1,6 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from config.database import get_async_session
 from sqlalchemy.orm import selectinload, aliased
@@ -13,6 +13,7 @@ from catalog.schemas.product import BaseProductSchema, UpdateProductSchema, Simi
 
 from catalog.models import Product, Collection, Category, ProductImage
 from custom.models import CustomCategory
+from discounts.models import Discount, DiscountProduct
 
 router = APIRouter(prefix="/products", tags=["products"])
 
@@ -179,6 +180,8 @@ async def get_products_by_filters(
     price_gt: Optional[float] = None,
     price_lt: Optional[float] = None,
     search: Optional[str] = None,
+    discounts: Optional[bool] = None,
+    discount_id: Optional[int] = None,
 
     offset: int = Query(0, ge=0),
     limit: int = Query(20, le=100),
@@ -218,6 +221,16 @@ async def get_products_by_filters(
     if custom_category_id:
         query = query.where(
             Product.custom_categories.any(CustomCategory.category_id.in_(custom_category_id))
+        )
+    # Скидки
+    if discounts:
+        conditions = [Discount.is_active == True]
+        if discount_id:
+            conditions.append(Discount.id == discount_id)
+        query = query.where(
+            Product.discounts.any(
+                DiscountProduct.discount.has(and_(*conditions))
+            )
         )
     # Остальные фильтры
     if manufacturer_id:
@@ -289,7 +302,6 @@ async def update_product(
     session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(fastapi_users.current_user(superuser=True))
 ):
-    print(product_data)
     product = await ProductServices.update_product(session, product_id, product_data)
     return product
 

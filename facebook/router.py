@@ -34,7 +34,7 @@ async def facebook_feed(session: AsyncSession = Depends(get_async_session)):
     rss = etree.Element("rss", version="2.0")
     channel = etree.SubElement(rss, "channel")
     etree.SubElement(channel, "title").text = "Product Feed"
-    etree.SubElement(channel, "link").text = "https://yourdomain.com/facebook/facebook-feed.xml"
+    etree.SubElement(channel, "link").text = "https://style-shoes.shop/facebook/facebook-feed.xml"
     etree.SubElement(channel, "description").text = "Product feed for Facebook catalog"
 
     for product in products:
@@ -45,7 +45,7 @@ async def facebook_feed(session: AsyncSession = Depends(get_async_session)):
         etree.SubElement(item, "availability").text = "in stock"
         etree.SubElement(item, "condition").text = "new"
         etree.SubElement(item, "price").text = f"{product.retail_price:.2f} KGS"
-        etree.SubElement(item, "link").text = f"https://yourdomain.com/product/{product.good_id}"
+        etree.SubElement(item, "link").text = f"https://style-shoes.shop/product?good_id={product.good_id}"
 
         # Первое изображение
         if product.images:
