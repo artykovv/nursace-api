@@ -182,6 +182,8 @@ async def get_products_by_filters(
     search: Optional[str] = None,
     discounts: Optional[bool] = None,
     discount_id: Optional[int] = None,
+    
+    has_image: Optional[bool] = Query(None),
 
     offset: int = Query(0, ge=0),
     limit: int = Query(20, le=100),
@@ -189,6 +191,12 @@ async def get_products_by_filters(
     session: AsyncSession = Depends(get_async_session),
 ):
     query = select(Product).where(Product.warehouse_quantity > 0).offset(offset).limit(limit)
+
+     # Фильтр по картинке
+    if has_image is True:
+        query = query.where(Product.images.any(ProductImage.image_url.isnot(None)))
+    elif has_image is False:
+        query = query.where(~Product.images.any(ProductImage.image_url.isnot(None)))
 
     # Рекурсивные фильтры по коллекциям
     if collection_id:
