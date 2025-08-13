@@ -21,6 +21,20 @@ async def get_collections(
     collections = result.scalars().all()
     return collections
 
+@router.get("/v3/")
+async def get_collections(
+    session: AsyncSession = Depends(get_async_session)
+):
+    stmt = (
+        select(Collection)
+        .join(Product, Product.collection_id == Collection.collection_id)
+        .where(Product.warehouse_quantity > 0, Product.images.any())
+        .distinct()
+    )
+    result = await session.execute(stmt)
+    collections = result.scalars().all()
+    return collections
+
 @router.get("/{collection_id}")
 async def get_collection_by_id(
     collection_id: int,

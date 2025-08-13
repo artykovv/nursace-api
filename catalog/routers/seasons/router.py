@@ -20,6 +20,23 @@ async def get_seasons(
     seasons = result.scalars().all()
     return seasons
 
+@router.get("/v3/")
+async def get_seasons(
+    session: AsyncSession = Depends(get_async_session)
+):
+    stmt = (
+        select(Season)
+        .join(Product, Product.season_id == Season.season_id)
+        .where(
+            Product.warehouse_quantity > 0,
+            Product.images.any()  # есть хотя бы одна картинка
+        )
+        .distinct()
+    )
+    result = await session.execute(stmt)
+    seasons = result.scalars().all()
+    return seasons
+
 @router.get("/{season_id}")
 async def get_season_by_id(
     season_id: int,

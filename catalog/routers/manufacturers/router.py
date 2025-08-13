@@ -21,6 +21,20 @@ async def get_manufacturers(
     manufacturers = result.scalars().all()
     return manufacturers
 
+@router.get("/v3/")
+async def get_manufacturers(
+    session: AsyncSession = Depends(get_async_session)
+):
+    stmt = (
+        select(Manufacturer)
+        .join(Product, Product.manufacturer_id == Manufacturer.manufacturer_id)
+        .where(Product.warehouse_quantity > 0,  Product.images.any())
+        .distinct()
+    )
+    result = await session.execute(stmt)
+    manufacturers = result.scalars().all()
+    return manufacturers
+
 @router.get("/{manufacturer_id}")
 async def get_manufacturer_by_id(
     manufacturer_id: int,

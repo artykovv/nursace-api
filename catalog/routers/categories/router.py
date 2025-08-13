@@ -21,6 +21,23 @@ async def get_categories(
     categories = result.scalars().all()
     return categories
 
+@router.get("/v3/")
+async def get_categories(
+    session: AsyncSession = Depends(get_async_session)
+):
+    stmt = (
+        select(Category)
+        .join(Product, Product.category_id == Category.category_id)
+        .where(
+            Product.warehouse_quantity > 0,
+            Product.images.any()  # только категории с товарами, у которых есть фото
+        )
+        .distinct()
+    )
+    result = await session.execute(stmt)
+    categories = result.scalars().all()
+    return categories
+
 @router.get("/{category_id}")
 async def get_category_by_id(
     category_id: int,
