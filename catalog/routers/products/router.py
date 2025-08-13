@@ -457,14 +457,14 @@ async def update_product_images(
     product = await ProductServices.update_product_images(session, product_id, images)
     return product
 
-@router.delete("/{product_id}/images")
+@router.delete("/{image_id}/images")
 async def delete_product_image(
     image_id: int,
     session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(fastapi_users.current_user(superuser=True))
 ):
     result = await session.execute(
-        select(ProductImage).where(ProductImage.id == image_id)
+        select(ProductImage).where(ProductImage.image_id == image_id)
     )
     db_image = result.scalar_one_or_none()
 
