@@ -42,14 +42,20 @@ class ProductServices:
         if not db_product:
             raise HTTPException(status_code=404, detail="Product not found")
 
+        # Получаем уже существующие URL для этого товара
+        existing_urls = {img.image_url for img in db_product.images}
+
         for image in images:
-            db_image = ProductImage(
-                good_id=product_id,
-                image_url=image.image_url,
-                is_main=image.is_main,
-                order=image.order
-            )
-            session.add(db_image)
+            if image.image_url not in existing_urls:
+                db_image = ProductImage(
+                    good_id=product_id,
+                    image_url=image.image_url,
+                    is_main=image.is_main,
+                    order=image.order
+                )
+                session.add(db_image)
+                existing_urls.add(image.image_url)  # Чтобы при нескольких одинаковых URL в запросе не дублировало
+
         await session.commit()
         await session.refresh(db_product)
         return db_product
