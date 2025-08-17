@@ -15,7 +15,7 @@ async def facebook_feed(session: AsyncSession = Depends(get_async_session)):
     # Получаем товары, которые нужно отображать
     result = await session.execute(
         select(Product)
-        .where(Product.display == 1)
+        .where(Product.display == 1, Product.images.any())
         .options(
             selectinload(Product.manufacturer),
             selectinload(Product.images),
