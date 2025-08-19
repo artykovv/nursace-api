@@ -70,3 +70,4 @@ class Product(Base):
 
     lead_products = relationship("LeadProduct", back_populates="product")
     discounts = relationship("DiscountProduct", back_populates="product")
+    outlets = relationship("OutletProduct", back_populates="product")

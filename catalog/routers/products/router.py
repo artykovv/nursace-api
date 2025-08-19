@@ -14,6 +14,7 @@ from catalog.schemas.product import BaseProductSchema, UpdateProductSchema, Simi
 from catalog.models import Product, Collection, Category, ProductImage
 from custom.models import CustomCategory
 from discounts.models import Discount, DiscountProduct
+from outlet.models import OutletProduct, Outlet
 
 router = APIRouter(prefix="/products", tags=["products"])
 
@@ -320,6 +321,7 @@ async def get_products_by_filters(
     search: Optional[str] = None,
     discounts: Optional[bool] = None,
     discount_id: Optional[int] = None,
+    outlet_id: Optional[int] = None,
 
     offset: int = Query(0, ge=0),
     limit: int = Query(20, le=100),
@@ -331,6 +333,10 @@ async def get_products_by_filters(
         Product.warehouse_quantity > 0,
         Product.images.any()  # только товары, у которых есть хотя бы одна картинка
     ).offset(offset).limit(limit)
+
+    # 🔹 фильтрация по outlet
+    if outlet_id:
+        query = query.join(OutletProduct).where(OutletProduct.outlet_id == outlet_id)
 
     # Рекурсивные фильтры по коллекциям
     if collection_id:

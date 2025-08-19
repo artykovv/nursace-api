@@ -5,6 +5,7 @@ from discounts.models.discounts import DiscountProduct, Discount
 from config.database import get_async_session  
 from catalog.models import Category, Product, Manufacturer, Collection, Color, Sex
 from custom.models import CustomCategory
+from outlet.models import OutletProduct
 
 router = APIRouter(prefix="/filters", tags=["filters"])
 
@@ -17,6 +18,7 @@ async def get_available_filters(
     season_id: int | None = None,
     discounts: bool | None = None,
     discount_id: int | None = None,
+    outlet_id: int | None = None,
     session: AsyncSession = Depends(get_async_session)
 ):
     stmt = select(Product).where(Product.warehouse_quantity > 0)
@@ -49,6 +51,8 @@ async def get_available_filters(
         stmt = stmt.where(
             Product.custom_categories.any(CustomCategory.category_id == custom_category_id)
         )
+    if outlet_id:
+        stmt = stmt.join(OutletProduct).where(OutletProduct.outlet_id == outlet_id)
 
     subquery = stmt.subquery()
 
@@ -114,6 +118,7 @@ async def get_available_filters(
     season_id: int | None = None,
     discounts: bool | None = None,
     discount_id: int | None = None,
+    outlet_id: int | None = None,
     session: AsyncSession = Depends(get_async_session)
 ):
     stmt = select(Product).where(
@@ -149,7 +154,9 @@ async def get_available_filters(
         stmt = stmt.where(
             Product.custom_categories.any(CustomCategory.category_id == custom_category_id)
         )
-
+    if outlet_id:
+        stmt = stmt.join(OutletProduct).where(OutletProduct.outlet_id == outlet_id)
+        
     subquery = stmt.subquery()
 
     # --- Цвета ---
