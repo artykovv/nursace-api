@@ -23,8 +23,23 @@ class ProductServices:
             raise HTTPException(status_code=404, detail="Product not found")
 
         update_data = product_data.dict(exclude_unset=True)
+        # Определяем, нужно ли распространять изменение цвета на товары с тем же артикулом
+        propagate_color_change = 'color_id' in update_data
+        new_color_id = update_data.get('color_id') if propagate_color_change else None
         for key, value in update_data.items():
             setattr(db_product, key, value)
+
+        # Если изменился цвет, находим все товары с тем же артикулом и обновляем им color_id
+        if propagate_color_change:
+            current_articul = db_product.articul  # после применения возможного изменения артикула
+            similar_products_result = await session.execute(
+                select(Product).where(Product.articul == current_articul)
+            )
+            similar_products = similar_products_result.scalars().all()
+
+            for similar_product in similar_products:
+                if similar_product.good_id != product_id:
+                    similar_product.color_id = new_color_id
 
         try:
             await session.commit()
