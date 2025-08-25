@@ -331,6 +331,7 @@ async def get_products_by_filters(
     # query = select(Product).where(Product.warehouse_quantity > 0).offset(offset).limit(limit)
     query = select(Product).where(
         Product.warehouse_quantity > 0,
+        Product.display == 1,
         Product.images.any()  # только товары, у которых есть хотя бы одна картинка
     ).offset(offset).limit(limit)
 
@@ -485,6 +486,7 @@ async def delete_product_image(
 @router.get("/{product_id}/similar", response_model=list[SimilarProductSchema])
 async def get_similar_products(
     product_id: int,
+    admin: bool = False,
     session: AsyncSession = Depends(get_async_session)
 ):
     result = await session.execute(
@@ -503,6 +505,10 @@ async def get_similar_products(
         .where(
             Product.good_id != product.good_id,
             Product.articul == product.articul,
+            or_(
+                Product.display == 1,
+                admin == True,
+            ),
             or_(
                 Product.color_id != product.color_id,
                 Product.product_size != product.product_size

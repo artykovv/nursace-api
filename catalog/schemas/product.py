@@ -40,6 +40,7 @@ class BaseProductSchema(BaseModel):
     product_size: Optional[float]
 
     warehouse_quantity: int
+    display: int
 
     images: List[ProductImageSchema] = []
 
@@ -68,6 +69,8 @@ class UpdateProductSchema(BaseModel):
     product_size: Optional[float] = None
 
     warehouse_quantity: Optional[int] = None
+
+    display: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 
