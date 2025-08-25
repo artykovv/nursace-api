@@ -114,15 +114,44 @@ class CRUDDiscountProduct:
         # Получаем саму скидку
         discount = await session.get(Discount, discount_id)
 
-        # Добавляем связи
+        # Расширяем список: добавляем все товары с тем же артикулом
+        expanded_product_ids = set(product_ids or [])
+        if expanded_product_ids:
+            result_art = await session.execute(
+                select(Product.articul).where(Product.good_id.in_(expanded_product_ids))
+            )
+            articuls = [row[0] for row in result_art.all() if row[0] is not None]
+
+            if articuls:
+                result_goods = await session.execute(
+                    select(Product.good_id).where(Product.articul.in_(articuls))
+                )
+                expanded_product_ids.update([row[0] for row in result_goods.all()])
+
+        # Исключаем уже существующие связи
+        if expanded_product_ids:
+            existing_links_result = await session.execute(
+                select(DiscountProduct.product_id).where(
+                    DiscountProduct.discount_id == discount_id,
+                    DiscountProduct.product_id.in_(expanded_product_ids)
+                )
+            )
+            already_linked_ids = {row[0] for row in existing_links_result.all()}
+        else:
+            already_linked_ids = set()
+
+        ids_to_add = [pid for pid in expanded_product_ids if pid not in already_linked_ids]
+
+        # Добавляем новые связи
         links = [
             DiscountProduct(discount_id=discount_id, product_id=pid)
-            for pid in product_ids
+            for pid in ids_to_add
         ]
-        session.add_all(links)
+        if links:
+            session.add_all(links)
 
-        # Обновляем товары
-        for pid in product_ids:
+        # Пересчитываем цены для всех затронутых товаров
+        for pid in expanded_product_ids:
             product = await session.get(Product, pid)
             if product and discount:
                 discounted_price = product.retail_price * (1 - discount.discount_percent / 100)
