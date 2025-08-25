@@ -328,12 +328,41 @@ async def get_products_by_filters(
 
     session: AsyncSession = Depends(get_async_session),
 ):
-    # query = select(Product).where(Product.warehouse_quantity > 0).offset(offset).limit(limit)
-    query = select(Product).where(
+    # Подзапрос с ранжированием товаров по артикулам
+    # Применяем базовые фильтры ДО группировки
+    base_conditions = [
         Product.warehouse_quantity > 0,
         Product.display == 1,
         Product.images.any()  # только товары, у которых есть хотя бы одна картинка
-    ).offset(offset).limit(limit)
+    ]
+    
+    # Добавляем фильтр по размеру в базовые условия
+    if product_size:
+        base_conditions.append(Product.product_size.in_(product_size))
+    
+    ranked_subq = (
+        select(
+            Product.good_id,
+            func.row_number().over(
+                partition_by=Product.articul,
+                order_by=[Product.retail_price_with_discount.asc(), Product.good_id.asc()]
+            ).label("rank")
+        )
+        .where(*base_conditions)
+        .subquery()
+    )
+
+    # Подзапрос с good_id товаров с rank=1 (минимальная цена и минимальный good_id)
+    min_good_ids_subq = (
+        select(ranked_subq.c.good_id)
+        .where(ranked_subq.c.rank == 1)
+        .offset(offset)
+        .limit(limit)
+        .subquery()
+    )
+
+    # Основной запрос — выбираем товары с good_id из подзапроса
+    query = select(Product).where(Product.good_id.in_(select(min_good_ids_subq)))
 
     # 🔹 фильтрация по outlet
     if outlet_id:
@@ -398,8 +427,7 @@ async def get_products_by_filters(
         query = query.where(Product.guarantee_mes_unit_id == guarantee_mes_unit_id)
     if model_good_id:
         query = query.where(Product.model_good_id == model_good_id)
-    if product_size:
-        query = query.where(Product.product_size.in_(product_size))
+    # Фильтр по размеру уже применен в подзапросе выше
 
     if price_gt is not None:
         query = query.where(Product.retail_price_with_discount >= price_gt)
