@@ -14,6 +14,7 @@ from cart.models import CartItem
 from order.services.order import OrderStatusCRUD
 from order.schemas.order import ChekoutOrderCreate
 from notification.tasks.email_sender import send_check_email
+from catalog.models.products import Product
 
 router = APIRouter(prefix="/orders", tags=["checkout"])
 
@@ -105,19 +106,102 @@ async def payment_result(
         order.status_id = status.id
         background_tasks.add_task(send_check_email, int(order_id))
     else:
-        order.status_id = await OrderStatusCRUD.get_by_name(name="cancelled", db=db)
+        # Если оплата не прошла, восстанавливаем количество товаров
+        await restore_product_quantities(order_id, db)
+        status = await OrderStatusCRUD.get_by_name(name="cancelled", db=db)
+        order.status_id = status.id
 
     await db.commit()
     return {"status": "ok"}
 
+async def restore_product_quantities(order_id: int, db: AsyncSession):
+    """
+    Восстанавливает количество товаров при отмене заказа.
+    
+    Эта функция используется в двух случаях:
+    1. При неуспешной оплате (pg_result != "1")
+    2. При ручной отмене заказа администратором
+    
+    Логика работы:
+    1. Получает все позиции заказа с товарами
+    2. Восстанавливает количество каждого товара
+    3. Если товар снова появился в наличии, показывает его (display = 1)
+    """
+    # Получаем все позиции заказа с товарами
+    stmt = select(OItem).where(OItem.order_id == order_id).options(selectinload(OItem.product))
+    result = await db.execute(stmt)
+    order_items = result.scalars().all()
+    
+    for item in order_items:
+        product = item.product
+        # Восстанавливаем количество товара на складе
+        old_quantity = product.warehouse_quantity
+        product.warehouse_quantity += item.quantity
+        print(f"🔄 Восстановление товара {product.good_name}: {old_quantity} -> {product.warehouse_quantity}")
+        
+        # Если товар снова появился в наличии, показываем его
+        if product.warehouse_quantity > 0 and product.display == 0:
+            product.display = 1
+            print(f"✅ Товар {product.good_name} снова показан (количество > 0)")
 
+@router.post("/cancel/{order_id}")
+async def cancel_order(order_id: int, db: AsyncSession = Depends(get_async_session)):
+    """
+    Отменяет заказ и восстанавливает количество товаров.
+    
+    Эта функция позволяет администраторам вручную отменять заказы.
+    
+    Ограничения:
+    - Нельзя отменить уже оплаченный заказ
+    - При отмене восстанавливается количество товаров на складе
+    - Товары снова становятся видимыми, если их количество > 0
+    
+    Args:
+        order_id: ID заказа для отмены
+        
+    Returns:
+        dict: Статус операции и сообщение
+    """
+    # Получаем заказ
+    order = await db.get(Order, order_id)
+    if not order:
+        raise HTTPException(404, "Заказ не найден")
+    
+    # Проверяем, что заказ не оплачен
+    paid_status = await OrderStatusCRUD.get_by_name(name="paid", db=db)
+    if order.status_id == paid_status.id:
+        raise HTTPException(400, "Нельзя отменить оплаченный заказ")
+    
+    # Восстанавливаем количество товаров
+    await restore_product_quantities(order_id, db)
+    
+    # Устанавливаем статус "отменен"
+    cancelled_status = await OrderStatusCRUD.get_by_name(name="cancelled", db=db)
+    order.status_id = cancelled_status.id
+    
+    await db.commit()
+    return {"status": "ok", "message": "Заказ отменен"}
 
 @router.post("/checkout")
 async def checkout(data: ChekoutOrderCreate, db: AsyncSession = Depends(get_async_session)):
+    """
+    Создает заказ из корзины пользователя.
+    
+    Логика работы:
+    1. Проверяет корзину на наличие товаров
+    2. Проверяет доступность товаров (display = 1)
+    3. Проверяет достаточность количества товаров
+    4. Проверяет минимальное количество для заказа
+    5. Уменьшает количество товаров на складе
+    6. Скрывает товары с нулевым количеством (display = 0)
+    7. Создает заказ и позиции заказа
+    8. Очищает корзину
+    9. Генерирует ссылку для оплаты
+    """
     if not (data.user_id or data.session_id):
         raise HTTPException(400, "Нужен либо user_id, либо session_id")
 
-    # 1. Получаем корзину
+    # 1. Получаем корзину с загруженными товарами
     stmt = select(CartItem).where(
         CartItem.user_id == data.user_id if data.user_id else CartItem.session_id == data.session_id
     ).options(selectinload(CartItem.product))
@@ -126,7 +210,34 @@ async def checkout(data: ChekoutOrderCreate, db: AsyncSession = Depends(get_asyn
     if not cart_items:
         raise HTTPException(400, "Корзина пуста")
 
-    # 2. Создаем OrderInfo
+    # Проверяем, что все товары в корзине доступны для заказа
+    for item in cart_items:
+        if item.product.display == 0:
+            raise HTTPException(400, f"Товар {item.product.good_name} недоступен для заказа")
+
+    # 2. Проверяем наличие товаров и уменьшаем количество
+    for item in cart_items:
+        product = item.product
+        
+        # Проверка достаточности количества
+        if product.warehouse_quantity < item.quantity:
+            raise HTTPException(400, f"Недостаточно товара {product.good_name}. В наличии: {product.warehouse_quantity}, заказано: {item.quantity}")
+        
+        # Проверка минимального количества для заказа
+        if product.min_quantity_for_order and item.quantity < product.min_quantity_for_order:
+            raise HTTPException(400, f"Минимальное количество для заказа товара {product.good_name}: {product.min_quantity_for_order}")
+        
+        # Уменьшаем количество товара на складе
+        old_quantity = product.warehouse_quantity
+        product.warehouse_quantity -= item.quantity
+        print(f"📦 Товар {product.good_name}: {old_quantity} -> {product.warehouse_quantity} (заказано: {item.quantity})")
+        
+        # Если товар закончился, скрываем его (display = 0)
+        if product.warehouse_quantity == 0:
+            product.display = 0
+            print(f"🚫 Товар {product.good_name} скрыт (количество = 0)")
+
+    # 3. Создаем информацию о заказе (OrderInfo)
     info = OrderInfo(
         # Assign user_id if provided
         user_id=data.user_id if data.is_save and data.user_id else None,
@@ -144,7 +255,7 @@ async def checkout(data: ChekoutOrderCreate, db: AsyncSession = Depends(get_asyn
     db.add(info)
     await db.flush()
 
-    # 3. Рассчитываем сумму и создаём Order
+    # 4. Рассчитываем общую сумму и создаём заказ (Order)
     total = sum(item.product.retail_price * item.quantity for item in cart_items)
 
     order = Order(
@@ -157,7 +268,7 @@ async def checkout(data: ChekoutOrderCreate, db: AsyncSession = Depends(get_asyn
     db.add(order)
     await db.flush()
 
-    # 4. Добавляем позиции OrderItem
+    # 5. Добавляем позиции заказа (OrderItem)
     for item in cart_items:
         oi = OItem(
             order_id=order.id,
@@ -167,13 +278,14 @@ async def checkout(data: ChekoutOrderCreate, db: AsyncSession = Depends(get_asyn
         )
         db.add(oi)
 
-    # 5. Очистка корзины
+    # 6. Очистка корзины после создания заказа
     for item in cart_items:
         await db.delete(item)
 
+    # Сохраняем все изменения в базе данных
     await db.commit()
 
-    # 6. Формируем payment_url (пример)
+    # 7. Формируем ссылку для оплаты
     payment_url = await generate_freedompay_link(
         order.id, 
         float(order.total_price), 
