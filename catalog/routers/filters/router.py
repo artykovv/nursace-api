@@ -19,6 +19,7 @@ async def get_available_filters(
     discounts: bool | None = None,
     discount_id: int | None = None,
     outlet_id: int | None = None,
+    sex_id: int | None = None,
     session: AsyncSession = Depends(get_async_session)
 ):
     stmt = select(Product).where(Product.warehouse_quantity > 0)
@@ -31,7 +32,8 @@ async def get_available_filters(
         stmt = stmt.where(Product.collection_id == collection_id)
     if season_id:
         stmt = stmt.where(Product.season_id == season_id)
-        
+    if sex_id:
+        stmt = stmt.where(Product.sex_id == sex_id)
     # Скидки
     if discounts:
         stmt = stmt.where(
@@ -119,6 +121,7 @@ async def get_available_filters(
     discounts: bool | None = None,
     discount_id: int | None = None,
     outlet_id: int | None = None,
+    sex_id: int | None = None,
     session: AsyncSession = Depends(get_async_session)
 ):
     stmt = select(Product).where(
@@ -134,7 +137,8 @@ async def get_available_filters(
         stmt = stmt.where(Product.collection_id == collection_id)
     if season_id:
         stmt = stmt.where(Product.season_id == season_id)
-        
+    if sex_id:
+        stmt = stmt.where(Product.sex_id == sex_id)
     # Скидки
     if discounts:
         stmt = stmt.where(
