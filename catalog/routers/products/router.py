@@ -380,6 +380,22 @@ async def get_products_by_filters(
             Product.custom_categories.any(CustomCategory.category_id.in_(custom_category_id))
         )
     
+    # Добавляем фильтр по сезону в базовые условия
+    # Это важно для корректной работы ранжирования
+    if season_id is not None:
+        base_conditions.append(Product.season_id == season_id)
+    
+    # Добавляем фильтры по полу, цвету и материалу в базовые условия
+    # Это важно для корректной работы ранжирования
+    if sex_id:
+        base_conditions.append(Product.sex_id.in_(sex_id))
+    
+    if color_id:
+        base_conditions.append(Product.color_id.in_(color_id))
+    
+    if material_id:
+        base_conditions.append(Product.material_id == material_id)
+    
     ranked_subq = (
         select(
             Product.good_id,
@@ -408,7 +424,7 @@ async def get_products_by_filters(
     if outlet_id:
         query = query.join(OutletProduct).where(OutletProduct.outlet_id == outlet_id)
 
-    # Фильтры по категориям и коллекциям уже применены в базовых условиях
+    # Фильтры по категориям, коллекциям, сезону, полу, цвету и материалу уже применены в базовых условиях
     # Скидки
     if discounts:
         conditions = [Discount.is_active == True]
@@ -420,14 +436,6 @@ async def get_products_by_filters(
             )
         )
     # Остальные фильтры
-    if season_id is not None:
-        query = query.where(Product.season_id == season_id)
-    if sex_id:
-        query = query.where(Product.sex_id.in_(sex_id))
-    if color_id:
-        query = query.where(Product.color_id.in_(color_id))
-    if material_id:
-        query = query.where(Product.material_id == material_id)
     if measure_unit_id:
         query = query.where(Product.measure_unit_id == measure_unit_id)
     if guarantee_mes_unit_id:
