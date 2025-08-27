@@ -340,6 +340,46 @@ async def get_products_by_filters(
     if product_size:
         base_conditions.append(Product.product_size.in_(product_size))
     
+    # Добавляем фильтр по производителю в базовые условия
+    # Это важно для корректной работы ранжирования - фильтр должен применяться ДО группировки по артикулам
+    if manufacturer_id:
+        base_conditions.append(Product.manufacturer_id.in_(manufacturer_id))
+    
+    # Добавляем фильтры по категориям и коллекциям в базовые условия
+    # Это важно для корректной работы ранжирования
+    if category_id:
+        # Рекурсивный фильтр по категориям
+        category_cte = (
+            select(Category.category_id)
+            .where(Category.category_id.in_(category_id))
+            .cte(name="category_cte", recursive=True)
+        )
+        category_alias = aliased(Category)
+        category_cte = category_cte.union_all(
+            select(category_alias.category_id)
+            .where(category_alias.parent_category_id == category_cte.c.category_id)
+        )
+        base_conditions.append(Product.category_id.in_(select(category_cte.c.category_id)))
+    
+    if collection_id:
+        # Рекурсивный фильтр по коллекциям
+        collection_cte = (
+            select(Collection.collection_id)
+            .where(Collection.collection_id.in_(collection_id))
+            .cte(name="collection_tree", recursive=True)
+        )
+        collection_alias = aliased(Collection)
+        collection_cte = collection_cte.union_all(
+            select(collection_alias.collection_id)
+            .where(collection_alias.parent_collection_id == collection_cte.c.collection_id)
+        )
+        base_conditions.append(Product.collection_id.in_(select(collection_cte.c.collection_id)))
+    
+    if custom_category_id:
+        base_conditions.append(
+            Product.custom_categories.any(CustomCategory.category_id.in_(custom_category_id))
+        )
+    
     ranked_subq = (
         select(
             Product.good_id,
@@ -368,38 +408,7 @@ async def get_products_by_filters(
     if outlet_id:
         query = query.join(OutletProduct).where(OutletProduct.outlet_id == outlet_id)
 
-    # Рекурсивные фильтры по коллекциям
-    if collection_id:
-        collection_cte = (
-            select(Collection.collection_id)
-            .where(Collection.collection_id.in_(collection_id))
-            .cte(name="collection_tree", recursive=True)
-        )
-        collection_alias = aliased(Collection)
-        collection_cte = collection_cte.union_all(
-            select(collection_alias.collection_id)
-            .where(collection_alias.parent_collection_id == collection_cte.c.collection_id)
-        )
-        query = query.where(Product.collection_id.in_(select(collection_cte.c.collection_id)))
-
-    # Рекурсивные фильтры по категориям
-    if category_id:
-        category_cte = (
-            select(Category.category_id)
-            .where(Category.category_id.in_(category_id))
-            .cte(name="category_cte", recursive=True)
-        )
-        category_alias = aliased(Category)
-        category_cte = category_cte.union_all(
-            select(category_alias.category_id)
-            .where(category_alias.parent_category_id == category_cte.c.category_id)
-        )
-        query = query.where(Product.category_id.in_(select(category_cte.c.category_id)))
-
-    if custom_category_id:
-        query = query.where(
-            Product.custom_categories.any(CustomCategory.category_id.in_(custom_category_id))
-        )
+    # Фильтры по категориям и коллекциям уже применены в базовых условиях
     # Скидки
     if discounts:
         conditions = [Discount.is_active == True]
@@ -411,8 +420,6 @@ async def get_products_by_filters(
             )
         )
     # Остальные фильтры
-    if manufacturer_id:
-        query = query.where(Product.manufacturer_id.in_(manufacturer_id))
     if season_id is not None:
         query = query.where(Product.season_id == season_id)
     if sex_id:
