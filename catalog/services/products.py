@@ -1,12 +1,12 @@
 from typing import List
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from catalog.models import Product
 from catalog.models.product_images import ProductImage
-from catalog.schemas.product import ProductImageSchema, UpdateProductSchema
+from catalog.schemas.product import ProductImageSchema, UpdateProductSchema, UpdateProductImageSchema
 
 class ProductServices:
 
@@ -49,7 +49,8 @@ class ProductServices:
             await session.rollback()
             raise HTTPException(status_code=400, detail=f"Error updating product: {str(e)}")
     
-    async def update_product_images(session: AsyncSession, product_id: int, images: List[ProductImageSchema]):
+    async def update_product_images(session: AsyncSession, product_id: int, images: List[UpdateProductImageSchema]):
+        # Найти исходный товар
         result = await session.execute(
             select(Product).options(selectinload(Product.images)).where(Product.good_id == product_id)
         )
@@ -57,45 +58,56 @@ class ProductServices:
         if not db_product:
             raise HTTPException(status_code=404, detail="Product not found")
 
-        # Получаем артикул текущего товара
+        # Получаем все товары с тем же артикулом (включая текущий)
         current_articul = db_product.articul
-        
-        # Находим все товары с тем же артикулом
         similar_products_result = await session.execute(
             select(Product).options(selectinload(Product.images)).where(Product.articul == current_articul)
         )
         similar_products = similar_products_result.scalars().all()
-        
-        # Получаем уже существующие URL для текущего товара
-        existing_urls = {img.image_url for img in db_product.images}
 
-        # Добавляем изображения к текущему товару
-        for image in images:
-            if image.image_url not in existing_urls:
-                db_image = ProductImage(
-                    good_id=product_id,
-                    image_url=image.image_url,
-                    is_main=image.is_main,
-                    order=image.order
-                )
-                session.add(db_image)
-                existing_urls.add(image.image_url)  # Чтобы при нескольких одинаковых URL в запросе не дублировало
+        # Нормализуем входные изображения: убираем дубликаты по URL, назначаем порядковые номера,
+        # и выставляем главный только для первого (order == 0)
+        seen_urls = set()
+        normalized = []
+        for idx, image in enumerate(images):
+            url = image.image_url
+            if url in seen_urls:
+                continue
+            seen_urls.add(url)
+            order_value = image.order if image.order is not None else len(normalized)
+            normalized.append({
+                "image_url": url,
+                "order": order_value,
+                # Главным делаем только первый по порядку, независимо от входного is_main
+                "is_main": False,
+            })
 
-        # Добавляем изображения ко всем похожим товарам с тем же артикулом
-        for similar_product in similar_products:
-            if similar_product.good_id != product_id:  # Пропускаем текущий товар
-                # Получаем существующие URL для похожего товара
-                similar_existing_urls = {img.image_url for img in similar_product.images}
-                
-                for image in images:
-                    if image.image_url not in similar_existing_urls:
-                        similar_image = ProductImage(
-                            good_id=similar_product.good_id,
-                            image_url=image.image_url,
-                            is_main=image.is_main,
-                            order=image.order
-                        )
-                        session.add(similar_image)
+        # Убедимся, что хотя бы одно изображение есть
+        if not normalized:
+            # Очистим изображения у всех похожих товаров
+            for product in similar_products:
+                await session.execute(delete(ProductImage).where(ProductImage.good_id == product.good_id))
+            await session.commit()
+            await session.refresh(db_product)
+            return db_product
+
+        # Отсортируем по order и выставим главный для первого
+        normalized.sort(key=lambda i: i["order"]) 
+        normalized[0]["is_main"] = True
+
+        # Для каждого товара с таким же артикулом пересоздаем изображения
+        for product in similar_products:
+            # Удаляем старые
+            await session.execute(delete(ProductImage).where(ProductImage.good_id == product.good_id))
+
+            # Добавляем новые по заданному порядку
+            for item in normalized:
+                session.add(ProductImage(
+                    good_id=product.good_id,
+                    image_url=item["image_url"],
+                    is_main=item["is_main"],
+                    order=item["order"],
+                ))
 
         await session.commit()
         await session.refresh(db_product)
