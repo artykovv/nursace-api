@@ -62,6 +62,17 @@ async def facebook_feed(session: AsyncSession = Depends(get_async_session)):
 
         if product.color:
             etree.SubElement(item, "color").text = product.color.color_name
+        
+        # Пол
+        if product.sex:
+            sex_map = {
+                "Мужской": "male",
+                "Женский": "female",
+                "Не определен": "unisex",
+            }
+            gender_value = sex_map.get(product.sex.sex_name)
+            if gender_value:  # девочку пропускаем
+                etree.SubElement(item, "gender").text = gender_value
 
         if product.product_size:
             etree.SubElement(item, "size").text = str(product.product_size)
