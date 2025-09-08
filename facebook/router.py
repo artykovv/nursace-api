@@ -1,5 +1,7 @@
+import csv
+import io
 from fastapi import APIRouter, Depends
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from lxml import etree  # pip install lxml
@@ -26,6 +28,7 @@ async def facebook_feed(session: AsyncSession = Depends(get_async_session)):
             selectinload(Product.material),
             selectinload(Product.measure_unit),
             selectinload(Product.guarantee_mes_unit),
+            selectinload(Product.manufacturer)
         )
     )
     products = result.scalars().all()
@@ -42,10 +45,11 @@ async def facebook_feed(session: AsyncSession = Depends(get_async_session)):
         etree.SubElement(item, "id").text = str(product.good_id)
         etree.SubElement(item, "title").text = product.good_name or ""
         etree.SubElement(item, "description").text = product.description or ""
-        etree.SubElement(item, "quantity_to_sell_on_facebook").text = str(float(product.warehouse_quantity))
+        etree.SubElement(item, "quantity_to_sell_on_facebook").text = str(int(product.warehouse_quantity or 0))
         etree.SubElement(item, "availability").text = "in stock"
         etree.SubElement(item, "condition").text = "new"
         etree.SubElement(item, "price").text = f"{product.retail_price:.2f} KGS"
+        etree.SubElement(item, "sale_price").text = f"{product.retail_price_with_discount:.2f} KGS"
         etree.SubElement(item, "link").text = f"https://style-shoes.shop/product?good_id={product.good_id}"
 
         # Первое изображение
@@ -81,3 +85,87 @@ async def facebook_feed(session: AsyncSession = Depends(get_async_session)):
     xml_string = etree.tostring(rss, xml_declaration=True, encoding='UTF-8', pretty_print=True)
 
     return Response(content=xml_string, media_type="application/xml")
+
+@router.get("/facebook-feed.csv")
+async def facebook_feed_csv(session: AsyncSession = Depends(get_async_session)):
+    result = await session.execute(
+        select(Product)
+        .where(Product.display == 1, Product.images.any())
+        .options(
+            selectinload(Product.manufacturer),
+            selectinload(Product.images),
+            selectinload(Product.color),
+            selectinload(Product.season),
+            selectinload(Product.sex),
+            selectinload(Product.collection),
+            selectinload(Product.material),
+            selectinload(Product.measure_unit),
+            selectinload(Product.guarantee_mes_unit),
+        )
+    )
+    products = result.scalars().all()
+
+    # Обязательные поля для Facebook Catalog
+    fieldnames = [
+        "id", "title", "description", "availability", "condition",
+        "price", "link", "image_link", "brand", "google_product_category",
+        "fb_product_category", "quantity_to_sell_on_facebook", "sale_price",
+        "sale_price_effective_date", "item_group_id", "gender", "color",
+        "size", "age_group", "material", "pattern", "shipping",
+        "shipping_weight", "gtin", "video[0].url", "video[0].tag[0]",
+        "product_tags[0]", "product_tags[1]", "style[0]"
+    ]
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=fieldnames, delimiter="\t")  # табуляция как у FB
+    writer.writeheader()
+
+    sex_map = {
+        "Мужской": "male",
+        "Женский": "female",
+        "Не определен": "unisex",
+    }
+
+    for product in products:
+        gender_value = None
+        if product.sex:
+            gender_value = sex_map.get(product.sex.sex_name)
+
+        writer.writerow({
+            "id": product.good_id,
+            "title": product.good_name or "",
+            "description": product.description or "",
+            "availability": "in stock",
+            "condition": "new",
+            "price": f"{product.retail_price:.2f} KGS" if product.retail_price else "",
+            "link": f"https://style-shoes.shop/product?good_id={product.good_id}",
+            "image_link": product.images[0].image_url if product.images else "",
+            "brand": product.manufacturer.manufacturer_name if product.manufacturer else "",
+            "google_product_category": "Apparel & Accessories > Shoes",
+            "fb_product_category": "Apparel & Accessories > Shoes",
+            "quantity_to_sell_on_facebook": str(int(product.warehouse_quantity or 0)),
+            "sale_price": f"{product.retail_price_with_discount:.2f} KGS" if product.retail_price_with_discount else "",
+            "sale_price_effective_date": "",   # можно добавить период скидки
+            "item_group_id": "",               # для вариантов по цвету/размеру
+            "gender": gender_value or "",
+            "color": product.color.color_name if product.color else "",
+            "size": str(product.product_size) if product.product_size else "",
+            "age_group": "adult",  # по умолчанию
+            "material": product.material.material_name if product.material else "",
+            "pattern": "",
+            "shipping": "KG:::0 KGS",  # бесплатная доставка по Кыргызстану
+            "shipping_weight": "",
+            "gtin": product.barcode or "",
+            "video[0].url": "",
+            "video[0].tag[0]": "",
+            "product_tags[0]": "",
+            "product_tags[1]": "",
+            "style[0]": "",
+        })
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=facebook-feed.csv"}
+    )
